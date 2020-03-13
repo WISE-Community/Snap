@@ -25,16 +25,43 @@
         <script type="text/javascript" src="src/api.js?version=2019-12-18"></script>
         <script type="text/javascript" src="src/sha512.js?version=2019-06-27"></script>
         <script type="text/javascript" src="src/FileSaver.min.js?version=2019-06-27"></script>
+        <script type="text/javascript" src="src/wiseAPI.js"></script>
         <script type="text/javascript">
-            var world;
-            window.onload = function () {
-                world = new WorldMorph(document.getElementById('world'));
-                new IDE_Morph().openIn(world);
-                loop();
-			};
+            var world, ide, wiseAPI;
+            window.onload = function() {
+              world = new WorldMorph(document.getElementById('world'));
+              ide = new IDE_Morph();
+              ide.openIn(world);
+              ide.save = () => {
+                snapData = ide.buildProjectRequest();
+                saveToWISE(snapData);
+              };
+              ide.addMessageListener('pressStart', () => {
+                snapData = ide.buildProjectRequest();
+                saveToWISE(snapData);
+              });
+              wiseAPI = new WISEAPI();
+              wiseAPI.handleComponentStateMessage = message => {
+                var snapData = message.componentState.studentData.xml;
+                ide.openProjectString(snapData);
+              };
+              loop();
+
+              // TODO: hook into SNAP application initialized event before calling this
+              wiseAPI.sendApplicationInitializedMessage();
+            };
             function loop() {
-                requestAnimationFrame(loop);
-                world.doOneCycle();
+              requestAnimationFrame(loop);
+              world.doOneCycle();
+            }
+            function saveToWISE(snapData) {
+              const componentState = wiseAPI.createComponentState(snapData, 'studentDataChanged');
+              componentState.studentData.type = 'snap';
+              try {
+                wiseAPI.sendMessageToParent(componentState);
+              } catch (err) {
+                console.log('not posted');
+              }
             }
         </script>
     </head>

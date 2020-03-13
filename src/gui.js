@@ -4522,6 +4522,7 @@ IDE_Morph.prototype.rawOpenProjectString = function (str) {
     StageMorph.prototype.enableSublistIDs = false;
     StageMorph.prototype.enablePenLogging = false;
     Process.prototype.enableLiveCoding = false;
+    const messageCallbacks = this.stage.messageCallbacks;
     if (Process.prototype.isCatchingErrors) {
         try {
             this.serializer.openProject(
@@ -4538,6 +4539,7 @@ IDE_Morph.prototype.rawOpenProjectString = function (str) {
         );
     }
     this.stopFastTracking();
+    this.stage.messageCallbacks = messageCallbacks;
 };
 
 IDE_Morph.prototype.openCloudDataString = function (str) {

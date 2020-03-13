@@ -8197,6 +8197,7 @@ StageMorph.prototype.fireGreenFlagEvent = function () {
     });
     if (ide) {
         ide.controlBar.pauseButton.refresh();
+        ide.broadcast('pressStart');
     }
     return procs;
 };

@@ -404,6 +404,14 @@ ThreadManager.prototype.removeTerminatedProcesses = function () {
         } else {
             remaining.push(proc);
         }
+        if ((proc.topBlock.selector === 'receiveGo' ||
+            proc.topBlock.selector === 'receiveInteraction')
+            && proc.homeContext.inputs.length != 0) {
+          result = proc.homeContext.inputs[0];
+          if (ide.reportCallback != null) {
+            ide.reportCallback(result);
+          }
+        }
     });
     this.processes = remaining;
 };

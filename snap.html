@@ -36,20 +36,150 @@
                 snapData = ide.buildProjectRequest();
                 saveToWISE(snapData);
               };
-              ide.addMessageListener('pressStart', () => {
+              ide.reportCallback = (report) => {
+                console.log(report);
+                let trials = [];
+                if (isSingleTrial(report)) {
+                  trials = convertSingleTrial(report);
+                } else if (isMultipleTrials(report)) {
+                  trials = convertMultipleTrials(report);
+                }
                 snapData = ide.buildProjectRequest();
+                snapData.trials = trials;
+                snapData.clearGraph = true;
                 saveToWISE(snapData);
-              });
+              };
+              ide.resetBlocks = () => {
+                const xmlFileName = getURLParameters('xml');
+                  fetch(`../${xmlFileName}`)
+                  .then(response => response.text())
+                  .then(text => {
+                    ide.openProjectString(text);
+                  });
+              };
               wiseAPI = new WISEAPI();
-              wiseAPI.handleComponentStateMessage = message => {
-                var snapData = message.componentState.studentData.xml;
-                ide.openProjectString(snapData);
+              wiseAPI.handleComponentStateMessage = (message) => {
+                if (message.componentState == null) {
+                  const xmlFileName = getURLParameters('xml');
+                  fetch(`../${xmlFileName}`)
+                  .then(response => response.text())
+                  .then(text => {
+                    ide.openProjectString(text);
+                  });
+                } else {
+                  const snapData = message.componentState.studentData.xml;
+                  ide.openProjectString(snapData);
+                }
               };
               loop();
-
               // TODO: hook into SNAP application initialized event before calling this
               wiseAPI.sendApplicationInitializedMessage();
             };
+            function isSingleTrial(report) {
+              if (report === '') {
+                // this is an empty report
+                return true;
+              } else if (typeof report.contents[0] === 'string' && report.contents.length === 3) {
+                // this is a report with one trial that has 3 parameters
+                return true;
+              }
+              return false;
+            }
+            function isMultipleTrials(report) {
+              if (report.contents[0] === '') {
+                // this is a report with a list that is empty
+                return true;
+              } else if (typeof report.contents[0] === 'object') {
+                // this is a report with a list that contains one or more trials
+                return true;
+              }
+              return false;
+            }
+            function convertSingleTrial(report) {
+              const trials = [];
+              if (report === '') {
+                alert('Error: You must report a trial\n');
+              } else if (isValidTrial(report.contents)) {
+                trials.push(convertTrialArrayToObject(report.contents));
+              } else {
+                alert(getInvalidTrialMessage(report.contents));
+              }
+              return trials;
+            }
+            function convertMultipleTrials(report) {
+              const trials = [];
+              let emptyTrialsCount = 0;
+              let errorMessage = '';
+              for (const content of report.contents) {
+                if (content == '') {
+                  emptyTrialsCount++;
+                } else if (typeof content === 'string') {
+                  errorMessage += `Error: ${content} is not a valid trial`;
+                } else if (isValidTrial(content.contents)) {
+                  trials.push(convertTrialArrayToObject(content.contents));
+                } else {
+                  errorMessage += getInvalidTrialMessage(content.contents);
+                }
+              }
+              if (report.contents.length === emptyTrialsCount) {
+                errorMessage += 'Error: Your list must contain a trial\n';
+              }
+              if (errorMessage != '') {
+                alert(errorMessage);
+              }
+              return trials;
+            }
+            function convertTrialArrayToObject(trialArray) {
+              return {
+                material: trialArray[0],
+                liquidTemp: trialArray[1],
+                airTemp: trialArray[2]
+              }
+            }
+            function isValidTrial(trialArray) {
+              const material = trialArray[0];
+              const liquidTemp = trialArray[1];
+              const airTemp = trialArray[2];
+              return isMaterial(material) && isTemperature(liquidTemp) && isTemperature(airTemp);
+            }
+            function getInvalidTrialMessage(trialArray) {
+              let message = '';
+              let material = trialArray[0];
+              let liquidTemp = trialArray[1];
+              let airTemp = trialArray[2];
+              if (!isMaterial(material)) {
+                if (material == null || material == '') {
+                  material = '(blank)';
+                }
+                message += `Error: ${material} is not a valid material\n`;
+              }
+              if (!isTemperature(liquidTemp)) {
+                if (liquidTemp == null || liquidTemp == '') {
+                  liquidTemp = '(blank)';
+                }
+                message += `Error: ${liquidTemp} is not a valid liquid temperature\n`;
+              }
+              if (!isTemperature(airTemp)) {
+                if (airTemp == null || airTemp == '') {
+                  airTemp = '(blank)';
+                }
+                message += `Error: ${airTemp} is not a valid air temperature\n`;
+              }
+              return message;
+            }
+            function isMaterial(material) {
+              return ['Aluminum', 'Wood', 'Styrofoam', 'Clay', 'Glass', 'Plastic'].includes(material);
+            }
+            function isTemperature(temp) {
+              return ['Hot', 'Warm', 'Cold'].includes(temp);
+            }
+            function getURLParameters(key) {
+              const parameters = {};
+              window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(str, key, value) {
+                parameters[key] = value;
+              });
+              return key ? parameters[key] : parameters;
+            }
             function loop() {
               requestAnimationFrame(loop);
               world.doOneCycle();

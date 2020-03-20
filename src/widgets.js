@@ -210,6 +210,9 @@ PushButtonMorph.prototype.mouseClickLeft = function () {
     if (this.label) {
         this.label.setCenter(this.center());
     }
+    if (this.labelString === 'Reset' && ide.resetBlocks) {
+      ide.resetBlocks();
+    }
 };
 
 PushButtonMorph.prototype.mouseLeave = function () {
